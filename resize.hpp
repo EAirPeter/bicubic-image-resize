@@ -45,6 +45,10 @@ unsigned char BGRAfterBiCubic(RGBImage src, float x_float, float y_float,
              src.data[((x0 + i) * src.cols + y0 + j) * channels + d];
     }
   }
+  if (sum < 0.0f)
+    sum = 0.0f;
+  if (sum > 255.0f)
+    sum = 255.0f;
   return static_cast<unsigned char>(sum);
 }
 
