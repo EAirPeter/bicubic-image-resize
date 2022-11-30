@@ -235,18 +235,19 @@ RGBImage ResizeImage(RGBImage src, float ratio) {
             //PROF_SCOPED_MARKER("SourceColumn");
             if (c > 1)
             {
-                constexpr auto j = 3;
-
-                __m128i xdw0, xdw1, xdw2, xdw3;
-                LoadXmm(xdw0, &src.data[((r - 1) * nCol + (c + j - 1)) * kNChannel]);
-                LoadXmm(xdw1, &src.data[((r - 0) * nCol + (c + j - 1)) * kNChannel]);
-                LoadXmm(xdw2, &src.data[((r + 1) * nCol + (c + j - 1)) * kNChannel]);
-                LoadXmm(xdw3, &src.data[((r + 2) * nCol + (c + j - 1)) * kNChannel]);
-                const auto yf0 = _mm256_castps128_ps256(_mm_cvtepi32_ps(xdw0));
-                const auto yf1 = _mm256_castps128_ps256(_mm_cvtepi32_ps(xdw1));
-                const auto yf2 = _mm256_castps128_ps256(_mm_cvtepi32_ps(xdw2));
-                const auto yf3 = _mm256_castps128_ps256(_mm_cvtepi32_ps(xdw3));
+                //__m128i xdw0, xdw1, xdw2, xdw3;
+                //LoadXmm(xdw0, &src.data[((r - 1) * nCol + (c + 3 - 1)) * kNChannel]);
+                //LoadXmm(xdw1, &src.data[((r - 0) * nCol + (c + 3 - 1)) * kNChannel]);
+                //LoadXmm(xdw2, &src.data[((r + 1) * nCol + (c + 3 - 1)) * kNChannel]);
+                //LoadXmm(xdw3, &src.data[((r + 2) * nCol + (c + 3 - 1)) * kNChannel]);
+                //const auto yf0 = _mm256_castps128_ps256(_mm_cvtepi32_ps(xdw0));
+                //const auto yf1 = _mm256_castps128_ps256(_mm_cvtepi32_ps(xdw1));
+                //const auto yf2 = _mm256_castps128_ps256(_mm_cvtepi32_ps(xdw2));
+                //const auto yf3 = _mm256_castps128_ps256(_mm_cvtepi32_ps(xdw3));
                 #define MAKE_SW(i) \
+                    __m128i xdw##i; \
+                    LoadXmm(xdw##i, &src.data[((r + i - 1) * nCol + (c + 3 - 1)) * kNChannel]); \
+                    const auto yf##i = _mm256_castps128_ps256(_mm_cvtepi32_ps(xdw##i)); \
                     const auto ysw##i##0 = GET_SW0(yf##i, 2, 1, 0); \
                     const auto ysw##i##1 = GET_SW1(yf##i, 2, 1, 0); \
                     const auto ycp##i##00 = _mm256_load_ps(&in012[i][1][0]); \
