@@ -3,11 +3,13 @@
 
 #include "utils.hpp"
 #include <cmath>
+#include <thread>
+#include <type_traits>
 
 #include <immintrin.h>
 
 #ifdef HAVE_PROFILER
-//#undef HAVE_PROFILER
+#undef HAVE_PROFILER
 #endif
 
 #ifdef HAVE_PROFILER
@@ -122,6 +124,29 @@ struct CoeffTableSwizzled
 
 static constexpr CoeffTableSwizzled kCoeffsSwizzled;
 
+static constexpr int kNThread = 16;
+
+struct Thread
+{
+    template<class... Ts>
+    void Start(Ts&&... args)
+    {
+        new(&m_Data) std::thread(std::forward<Ts>(args)...);
+    }
+    void Sync()
+    {
+        Get()->join();
+        Get()->~thread();
+    }
+    std::thread* Get()
+    {
+        return reinterpret_cast<std::thread*>(&m_Data);
+    }
+    std::aligned_storage_t<sizeof(std::thread), alignof(std::thread)> m_Data;
+};
+
+static Thread s_Threads[kNThread - 1];
+
 RGBImage ResizeImage(RGBImage src, float ratio) {
     if (kNChannel != src.channels || kRatio != ratio)
         return {};
@@ -174,10 +199,12 @@ RGBImage ResizeImage(RGBImage src, float ratio) {
 #define LOAD_DELTA_INTRIN 1
 #define LOAD_DELTA_CP_INTRIN 1
 
+    Timer timerwl("WorkLoop");
     PROF_SCOPED_MARKER("WorkLoop");
 
-    #pragma omp parallel for
-    for (auto r = 1; r < nRow - 2; ++r)
+    //#pragma omp parallel for
+    //for (auto r = 1; r < nRow - 2; ++r)
+    auto ProcessRow = [&src, pRes, nCol, nResCol](int r)
     {
         PROF_SCOPED_COND_CAPTURE(r == 123);
         //PROF_SCOPED_MARKER("SourceRow");
@@ -449,7 +476,26 @@ RGBImage ResizeImage(RGBImage src, float ratio) {
                 _mm_storeu_si128((__m128i*)&pRes[((r * kRatio + ir) * nResCol + c * kRatio) * kNChannel], xw);
             }
         }
-    }
+    };
+
+    const auto work = nRow - 3;
+    const auto quo = work / kNThread;
+    const auto rem = work % kNThread;
+
+    auto ProcessBatch = [&ProcessRow, quo, rem](int batch)
+    {
+        const auto start = batch * quo + std::min(rem, batch);
+        const auto stop = start + quo + (batch < rem);
+        for (auto r = start; r < stop; ++r)
+            ProcessRow(r);
+    };
+
+    for (auto batch = 0; batch < kNThread - 1; ++batch)
+        s_Threads[batch].Start([&ProcessBatch, batch]{ ProcessBatch(batch); });
+    ProcessBatch(kNThread - 1);
+
+    for (auto batch = 0; batch < kNThread - 1; ++batch)
+        s_Threads[batch].Sync();
 
     return RGBImage{nResCol, nResRow, kNChannel, pRes};
 }
