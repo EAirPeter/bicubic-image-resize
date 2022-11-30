@@ -327,10 +327,10 @@ RGBImage ResizeImage(RGBImage src, float ratio) {
                         vmovaps %t[xs0], %c[i220](%[dst])
                         vmovaps %t[xt0], %c[i228](%[dst])
 
-                        vmovaps %[xs1], %c[i230](%[dst])
-                        vmovaps %[xt1], %c[i234](%[dst])
-                        vmovaps %[xu1], %c[i238](%[dst])
-                        vmovaps %[xs1], %c[i23C](%[dst])
+                        vmovaps %[xs2], %c[i230](%[dst])
+                        vmovaps %[xt2], %c[i234](%[dst])
+                        vmovaps %[xu2], %c[i238](%[dst])
+                        vmovaps %[xs2], %c[i23C](%[dst])
 
                         vmovaps %c[i310](%[dst]), %[y0]
                         vmovaps %c[i318](%[dst]), %[y1]
@@ -346,16 +346,16 @@ RGBImage ResizeImage(RGBImage src, float ratio) {
                         vmovaps %t[xs0], %c[i320](%[dst])
                         vmovaps %t[xt0], %c[i328](%[dst])
 
-                        vmovaps %[xs1], %c[i330](%[dst])
-                        vmovaps %[xt1], %c[i334](%[dst])
-                        vmovaps %[xu1], %c[i338](%[dst])
-                        vmovaps %[xs1], %c[i33C](%[dst])
+                        vmovaps %[xs3], %c[i330](%[dst])
+                        vmovaps %[xt3], %c[i334](%[dst])
+                        vmovaps %[xu3], %c[i338](%[dst])
+                        vmovaps %[xs3], %c[i33C](%[dst])
                     )???"
                     : [xs0]"=x"(x0), [xs1]"=x"(x1), [xs2]"=x"(x2), [xs3]"=x"(x3)
                     , [xt0]"=x"(x4), [xu0]"=x"(x5), [xt1]"=x"(x6), [xu1]"=x"(x7)
                     , [xt2]"=x"(x8), [xu2]"=x"(x9), [xt3]"=x"(xA), [xu3]"=x"(xB)
                     , [y0]"=x"(yC), [y1]"=x"(yD), [y2]"=x"(yE), [y3]"=x"(yF)
-                    , [tmp]"=r"(s0)
+                    , [tmp]"=&r"(s0)
                     : [step]"r"(inStep), [dst]"r"(&in012), [src]"r"(in)
                     , [m0120]"i"(_MM_SHUFFLE(0, 2, 1, 0))
                     , [m1201]"i"(_MM_SHUFFLE(1, 0, 2, 1))
