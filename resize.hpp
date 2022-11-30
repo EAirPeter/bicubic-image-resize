@@ -171,7 +171,7 @@ RGBImage ResizeImage(RGBImage src, float ratio) {
     {
         PROF_SCOPED_COND_CAPTURE(r == 123);
         //PROF_SCOPED_MARKER("SourceRow");
-        alignas(32) float in012[4][4][16];
+        alignas(64) float in012[4][4][16];
         {
             PROF_SCOPED_MARKER("LoadInput");
         #if USE_ASM_LOAD
@@ -235,6 +235,175 @@ RGBImage ResizeImage(RGBImage src, float ratio) {
             {
                 constexpr auto j = 3;
 
+            #if USE_ASM_LOAD
+                const auto* in = &src.data[(r - 1) * nCol + (c + j - 1) * kNChannel];
+                const auto  inStep = ptrdiff_t(nCol * kNChannel);
+
+                ptrdiff_t s0;
+                __m128 x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, xA, xB;
+                __m256 yC, yD, yE, yF;
+
+                asm(
+                    R"???(
+                        lea (%[step],%[step],2), %[tmp]
+
+                        vpmovzxbd (%[src]),           %[xs0]
+                        vpmovzxbd (%[src],%[step]),   %[xs1]
+                        vpmovzxbd (%[src],%[step],2), %[xs2]
+                        vpmovzxbd (%[src],%[tmp]),    %[xs3]
+
+                        vcvtdq2ps %[xs0], %[xs0]
+                        vcvtdq2ps %[xs1], %[xs1]
+                        vcvtdq2ps %[xs2], %[xs2]
+                        vcvtdq2ps %[xs3], %[xs3]
+
+                        vpermilps %[m1201], %[xs0], %[xt0]
+                        vpermilps %[m2012], %[xs0], %[xu0]
+                        vpermilps %[m0120], %[xs0], %[xs0]
+
+                        vpermilps %[m1201], %[xs1], %[xt1]
+                        vpermilps %[m2012], %[xs1], %[xu1]
+                        vpermilps %[m0120], %[xs1], %[xs1]
+
+                        vpermilps %[m1201], %[xs2], %[xt2]
+                        vpermilps %[m2012], %[xs2], %[xu2]
+                        vpermilps %[m0120], %[xs2], %[xs2]
+
+                        vpermilps %[m1201], %[xs3], %[xt3]
+                        vpermilps %[m2012], %[xs3], %[xu3]
+                        vpermilps %[m0120], %[xs3], %[xs3]
+
+                        vmovaps %c[i010](%[dst]), %[y0]
+                        vmovaps %c[i018](%[dst]), %[y1]
+                        vmovaps %c[i020](%[dst]), %[y2]
+                        vmovaps %c[i028](%[dst]), %[y3]
+
+                        vmovaps %[y0], %c[i000](%[dst])
+                        vmovaps %[y1], %c[i008](%[dst])
+                        vmovaps %[y2], %c[i010](%[dst])
+                        vmovaps %[y3], %c[i018](%[dst])
+
+                        vmovaps %c[i030](%[dst]), %[y0]
+                        vmovaps %c[i038](%[dst]), %[y1]
+
+                        vmovaps %[y0], %c[i020](%[dst])
+                        vmovaps %[y1], %c[i028](%[dst])
+
+                        vmovaps %[xs0], %c[i030](%[dst])
+                        vmovaps %[xt0], %c[i034](%[dst])
+                        vmovaps %[xu0], %c[i038](%[dst])
+                        vmovaps %[xs0], %c[i03C](%[dst])
+
+                        vmovaps %c[i110](%[dst]), %[y0]
+                        vmovaps %c[i118](%[dst]), %[y1]
+                        vmovaps %c[i120](%[dst]), %[y2]
+                        vmovaps %c[i128](%[dst]), %[y3]
+                        vmovaps %c[i130](%[dst]), %t[xs0]
+                        vmovaps %c[i138](%[dst]), %t[xt0]
+
+                        vmovaps %[y0],   %c[i100](%[dst])
+                        vmovaps %[y1],   %c[i108](%[dst])
+                        vmovaps %[y2],   %c[i110](%[dst])
+                        vmovaps %[y3],   %c[i118](%[dst])
+                        vmovaps %t[xs0], %c[i120](%[dst])
+                        vmovaps %t[xt0], %c[i128](%[dst])
+
+                        vmovaps %[xs1], %c[i130](%[dst])
+                        vmovaps %[xt1], %c[i134](%[dst])
+                        vmovaps %[xu1], %c[i138](%[dst])
+                        vmovaps %[xs1], %c[i13C](%[dst])
+
+                        vmovaps %c[i210](%[dst]), %[y0]
+                        vmovaps %c[i218](%[dst]), %[y1]
+                        vmovaps %c[i220](%[dst]), %[y2]
+                        vmovaps %c[i228](%[dst]), %[y3]
+                        vmovaps %c[i230](%[dst]), %t[xs0]
+                        vmovaps %c[i238](%[dst]), %t[xt0]
+
+                        vmovaps %[y0],   %c[i200](%[dst])
+                        vmovaps %[y1],   %c[i208](%[dst])
+                        vmovaps %[y2],   %c[i210](%[dst])
+                        vmovaps %[y3],   %c[i218](%[dst])
+                        vmovaps %t[xs0], %c[i220](%[dst])
+                        vmovaps %t[xt0], %c[i228](%[dst])
+
+                        vmovaps %[xs1], %c[i230](%[dst])
+                        vmovaps %[xt1], %c[i234](%[dst])
+                        vmovaps %[xu1], %c[i238](%[dst])
+                        vmovaps %[xs1], %c[i23C](%[dst])
+
+                        vmovaps %c[i310](%[dst]), %[y0]
+                        vmovaps %c[i318](%[dst]), %[y1]
+                        vmovaps %c[i320](%[dst]), %[y2]
+                        vmovaps %c[i328](%[dst]), %[y3]
+                        vmovaps %c[i330](%[dst]), %t[xs0]
+                        vmovaps %c[i338](%[dst]), %t[xt0]
+
+                        vmovaps %[y0],   %c[i300](%[dst])
+                        vmovaps %[y1],   %c[i308](%[dst])
+                        vmovaps %[y2],   %c[i310](%[dst])
+                        vmovaps %[y3],   %c[i318](%[dst])
+                        vmovaps %t[xs0], %c[i320](%[dst])
+                        vmovaps %t[xt0], %c[i328](%[dst])
+
+                        vmovaps %[xs1], %c[i330](%[dst])
+                        vmovaps %[xt1], %c[i334](%[dst])
+                        vmovaps %[xu1], %c[i338](%[dst])
+                        vmovaps %[xs1], %c[i33C](%[dst])
+                    )???"
+                    : [xs0]"=x"(x0), [xs1]"=x"(x1), [xs2]"=x"(x2), [xs3]"=x"(x3)
+                    , [xt0]"=x"(x4), [xu0]"=x"(x5), [xt1]"=x"(x6), [xu1]"=x"(x7)
+                    , [xt2]"=x"(x8), [xu2]"=x"(x9), [xt3]"=x"(xA), [xu3]"=x"(xB)
+                    , [y0]"=x"(yC), [y1]"=x"(yD), [y2]"=x"(yE), [y3]"=x"(yF)
+                    , [tmp]"=r"(s0)
+                    : [step]"r"(inStep), [dst]"r"(&in012), [src]"r"(in)
+                    , [m0120]"i"(_MM_SHUFFLE(0, 2, 1, 0))
+                    , [m1201]"i"(_MM_SHUFFLE(1, 0, 2, 1))
+                    , [m2012]"i"(_MM_SHUFFLE(2, 1, 0, 2))
+                    , [i000]"i"(((0 * 4 + 0) * 16 +  0) * 4)
+                    , [i008]"i"(((0 * 4 + 0) * 16 +  8) * 4)
+                    , [i010]"i"(((0 * 4 + 1) * 16 +  0) * 4)
+                    , [i018]"i"(((0 * 4 + 1) * 16 +  8) * 4)
+                    , [i020]"i"(((0 * 4 + 2) * 16 +  0) * 4)
+                    , [i028]"i"(((0 * 4 + 2) * 16 +  8) * 4)
+                    , [i030]"i"(((0 * 4 + 3) * 16 +  0) * 4)
+                    , [i034]"i"(((0 * 4 + 3) * 16 +  4) * 4)
+                    , [i038]"i"(((0 * 4 + 3) * 16 +  8) * 4)
+                    , [i03C]"i"(((0 * 4 + 3) * 16 + 12) * 4)
+                    , [i100]"i"(((1 * 4 + 0) * 16 +  0) * 4)
+                    , [i108]"i"(((1 * 4 + 0) * 16 +  8) * 4)
+                    , [i110]"i"(((1 * 4 + 1) * 16 +  0) * 4)
+                    , [i118]"i"(((1 * 4 + 1) * 16 +  8) * 4)
+                    , [i120]"i"(((1 * 4 + 2) * 16 +  0) * 4)
+                    , [i128]"i"(((1 * 4 + 2) * 16 +  8) * 4)
+                    , [i130]"i"(((1 * 4 + 3) * 16 +  0) * 4)
+                    , [i134]"i"(((1 * 4 + 3) * 16 +  4) * 4)
+                    , [i138]"i"(((1 * 4 + 3) * 16 +  8) * 4)
+                    , [i13C]"i"(((1 * 4 + 3) * 16 + 12) * 4)
+                    , [i200]"i"(((2 * 4 + 0) * 16 +  0) * 4)
+                    , [i208]"i"(((2 * 4 + 0) * 16 +  8) * 4)
+                    , [i210]"i"(((2 * 4 + 1) * 16 +  0) * 4)
+                    , [i218]"i"(((2 * 4 + 1) * 16 +  8) * 4)
+                    , [i220]"i"(((2 * 4 + 2) * 16 +  0) * 4)
+                    , [i228]"i"(((2 * 4 + 2) * 16 +  8) * 4)
+                    , [i230]"i"(((2 * 4 + 3) * 16 +  0) * 4)
+                    , [i234]"i"(((2 * 4 + 3) * 16 +  4) * 4)
+                    , [i238]"i"(((2 * 4 + 3) * 16 +  8) * 4)
+                    , [i23C]"i"(((2 * 4 + 3) * 16 + 12) * 4)
+                    , [i300]"i"(((3 * 4 + 0) * 16 +  0) * 4)
+                    , [i308]"i"(((3 * 4 + 0) * 16 +  8) * 4)
+                    , [i310]"i"(((3 * 4 + 1) * 16 +  0) * 4)
+                    , [i318]"i"(((3 * 4 + 1) * 16 +  8) * 4)
+                    , [i320]"i"(((3 * 4 + 2) * 16 +  0) * 4)
+                    , [i328]"i"(((3 * 4 + 2) * 16 +  8) * 4)
+                    , [i330]"i"(((3 * 4 + 3) * 16 +  0) * 4)
+                    , [i334]"i"(((3 * 4 + 3) * 16 +  4) * 4)
+                    , [i338]"i"(((3 * 4 + 3) * 16 +  8) * 4)
+                    , [i33C]"i"(((3 * 4 + 3) * 16 + 12) * 4)
+                    : "memory"
+                );
+            #else
+
                 const auto xdw0 = _mm_cvtepu8_epi32(*(const __m128i*)&src.data[((r - 1) * nCol + (c + j - 1)) * kNChannel]);
                 const auto xdw1 = _mm_cvtepu8_epi32(*(const __m128i*)&src.data[((r - 0) * nCol + (c + j - 1)) * kNChannel]);
                 const auto xdw2 = _mm_cvtepu8_epi32(*(const __m128i*)&src.data[((r + 1) * nCol + (c + j - 1)) * kNChannel]);
@@ -270,6 +439,7 @@ RGBImage ResizeImage(RGBImage src, float ratio) {
                 MAKE_SW(3);
 
                 #undef MAKE_SW
+            #endif
             }
 
             //PROF_SCOPED_MARKER("YieldTile");
